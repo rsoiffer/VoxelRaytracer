@@ -10,9 +10,6 @@ authors = [
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-bevy = {
-    git = "https://github.com/bevyengine/bevy.git",
-    rev = "dbf226be49c239d348e56e19f5db1b900fd4f1a5",
-}
+bevy = { git = "https://github.com/bevyengine/bevy.git", rev = "dbf226be49c239d348e56e19f5db1b900fd4f1a5" }
 dot_vox = "4.1.0"
 ndarray = "0.14.0"
