@@ -7,12 +7,13 @@ use bevy::{
         camera::Camera,
         mesh::shape,
         pipeline::{PipelineDescriptor, RenderPipeline},
-        render_graph::{base, AssetRenderResourcesNode, RenderGraph},
+        render_graph::{AssetRenderResourcesNode, base, RenderGraph},
         renderer::RenderResources,
         shader::{ShaderStage, ShaderStages},
         texture::{Extent3d, FilterMode, SamplerDescriptor, TextureDimension, TextureFormat},
     },
 };
+use bevy::render::camera::PerspectiveProjection;
 
 mod vox;
 
@@ -123,7 +124,7 @@ fn setup(
             texture: texture_handle,
             blue_noise: blue_noise_handle.clone(),
             palette: palette,
-            camera_object_pos: Vec3::new(50.0, 120.0, -200.0),
+            camera_object_pos: Vec3::new(50.0, 100.0, -40.0),
             object_size: Vec3::new(width as f32, height as f32, depth as f32),
         });
 
@@ -149,7 +150,13 @@ fn setup(
     }
 
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_translation(Vec3::new(50.0, 120.0, -200.0)),
+        perspective_projection: PerspectiveProjection {
+            fov: 70.0 / 180.0 * std::f32::consts::PI,
+            near: 1.0,
+            far: 10000.0,
+            aspect_ratio: 1.0,
+        },
+        transform: Transform::from_translation(Vec3::new(50.0, 100.0, -40.0)),
         ..Default::default()
     });
 }
@@ -170,7 +177,7 @@ impl Default for MouseCameraState {
     }
 }
 
-const MOUSE_SENSITIVITY: f32 = 5.0;
+const MOUSE_SENSITIVITY: f32 = 15.0;
 
 fn mouse_camera(
     mut state: Local<MouseCameraState>,
