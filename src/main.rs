@@ -4,16 +4,15 @@ use bevy::{
     prelude::*,
     reflect::TypeUuid,
     render::{
-        camera::Camera,
+        camera::{Camera, PerspectiveProjection},
         mesh::shape,
         pipeline::{PipelineDescriptor, RenderPipeline},
-        render_graph::{AssetRenderResourcesNode, base, RenderGraph},
+        render_graph::{base, AssetRenderResourcesNode, RenderGraph},
         renderer::RenderResources,
         shader::{ShaderStage, ShaderStages},
         texture::{Extent3d, FilterMode, SamplerDescriptor, TextureDimension, TextureFormat},
     },
 };
-use bevy::render::camera::PerspectiveProjection;
 
 mod vox;
 
@@ -25,6 +24,7 @@ fn main() {
         .add_startup_system(setup)
         .add_system(exit_on_esc_system)
         .add_system(mouse_camera)
+        .add_system(keyboard_camera)
         .run();
 }
 
@@ -191,11 +191,44 @@ fn mouse_camera(
         .fold(Vec2::zero(), |acc, event| acc + event.delta);
     state.yaw -= delta.x * time.delta_seconds() * MOUSE_SENSITIVITY;
     state.pitch = (state.pitch + delta.y * time.delta_seconds() * MOUSE_SENSITIVITY)
-        .min(90.0)
-        .max(-90.0);
+        .min(89.0)
+        .max(-89.0);
 
     for (_, mut transform) in query.iter_mut() {
         transform.rotation = Quat::from_axis_angle(Vec3::unit_y(), state.yaw.to_radians())
             * Quat::from_axis_angle(-Vec3::unit_x(), state.pitch.to_radians());
+    }
+}
+
+fn keyboard_camera(
+    mut materials: ResMut<Assets<MyMaterial>>,
+    input: Res<Input<KeyCode>>,
+    mut query: Query<(&Camera, &mut Transform)>,
+) {
+    let forward_velocity = if input.pressed(KeyCode::W) {
+        -1.0
+    } else if input.pressed(KeyCode::S) {
+        1.0
+    } else {
+        0.0
+    };
+    let sideways_velocity = if input.pressed(KeyCode::A) {
+        1.0
+    } else if input.pressed(KeyCode::D) {
+        -1.0
+    } else {
+        0.0
+    };
+
+    for (_, mut transform) in query.iter_mut() {
+        let sideways = transform.forward().cross(Vec3::unit_y()).normalize();
+        let velocity = forward_velocity * transform.forward() + sideways_velocity * sideways;
+        transform.translation += velocity;
+
+        for handle in materials.ids().collect::<Vec<_>>() {
+            if let Some(material) = materials.get_mut(handle) {
+                material.camera_object_pos = transform.translation;
+            }
+        }
     }
 }
