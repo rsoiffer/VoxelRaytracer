@@ -1,10 +1,11 @@
+use std::cmp;
+
 use bevy::prelude::Color;
 use ndarray::{Array3, Ix};
-use std::cmp;
 
 pub type MaterialId = u8;
 
-pub type Palette = [Material; MaterialId::MAX as usize];
+pub type Palette = [Material; 256];
 
 #[derive(Clone, Copy, Debug)]
 pub struct Material {
@@ -41,15 +42,15 @@ pub fn load(filename: &str) -> Result<Vec<Model>, &'static str> {
                     Ix::from(voxel.y - min_y),
                     Ix::from(voxel.z - min_z),
                 );
-                voxels[position] = voxel.i;
+                voxels[position] = voxel.i + 1;
             }
             Model { palette, voxels }
         })
         .collect())
 }
 
-fn palette_from_colors(colors: impl IntoIterator<Item = u32>) -> Palette {
-    let mut materials = [Material { color: Color::NONE }; u8::MAX as usize];
+fn palette_from_colors(colors: impl IntoIterator<Item=u32>) -> Palette {
+    let mut materials = [Material { color: Color::NONE }; 256];
     for (i, color) in colors.into_iter().take(materials.len() - 1).enumerate() {
         materials[i + 1] = Material {
             color: color_from_u32(color),
@@ -66,10 +67,10 @@ fn color_from_u32(color: u32) -> Color {
     Color::rgba(component(0), component(1), component(2), component(3))
 }
 
-fn min_max<T>(xs: impl IntoIterator<Item = T>) -> Option<(T, T)>
-where
-    T: Copy,
-    T: Ord,
+fn min_max<T>(xs: impl IntoIterator<Item=T>) -> Option<(T, T)>
+    where
+        T: Copy,
+        T: Ord,
 {
     xs.into_iter().fold(None, |acc, x| match acc {
         None => Some((x, x)),
