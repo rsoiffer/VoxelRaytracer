@@ -49,7 +49,7 @@ RaycastHit raytrace(vec3 start, vec3 dir) {
 
     uint vox = 0;
     if (!(any(lessThan(pos, vec3(0, 0, 0))) || any(greaterThanEqual(pos, vec3(1, 1, 1))))) {
-        for (uint i = 0; i < 100; i++) {
+        for (uint i = 0; i < 1000; i++) {
             vox = textureLod(
                 usampler3D(MyMaterial_texture, MyMaterial_texture_sampler),
                 pos, 0).r;
