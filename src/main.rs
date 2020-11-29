@@ -9,8 +9,8 @@ use bevy::{
         shader::{ShaderStage, ShaderStages},
     },
 };
-use bevy::render::texture::{Extent3d, FilterMode, SamplerDescriptor, TextureDimension, TextureFormat};
 use bevy::core::Byteable;
+use bevy::render::texture::{Extent3d, FilterMode, SamplerDescriptor, TextureDimension, TextureFormat};
 
 /// This example illustrates how to create a custom material asset and a shader that uses that material
 fn main() {
@@ -21,10 +21,13 @@ fn main() {
         .run();
 }
 
+#[repr(C)]
 #[derive(Default, Clone, Copy, Debug)]
 struct VoxelMaterial {
     pub albedo: Vec3,
+    pub roughness: f32,
 }
+
 unsafe impl Byteable for VoxelMaterial {}
 
 #[derive(RenderResources, Default, TypeUuid)]
@@ -34,6 +37,8 @@ struct MyMaterial {
     pub texture: Handle<Texture>,
     #[render_resources(buffer)]
     pub palette: Vec<VoxelMaterial>,
+    pub cameraObjectPos: Vec3,
+    pub objectSize: Vec3,
 }
 
 const VERTEX_SHADER: &str = r#"
@@ -42,7 +47,7 @@ const VERTEX_SHADER: &str = r#"
 layout(location = 0) in vec3 Vertex_Position;
 layout(location = 1) in vec2 Vertex_Uv;
 
-layout(location = 0) out vec3 v_Position;
+layout(location = 0) out vec3 v_ObjectPos;
 layout(location = 1) out vec2 v_Uv;
 
 layout(set = 0, binding = 0) uniform Camera {
@@ -53,9 +58,9 @@ layout(set = 1, binding = 0) uniform Transform {
 };
 
 void main() {
-    gl_Position = ViewProj * Model * vec4(Vertex_Position, 1.0);
-    v_Position = gl_Position.xyz;
+    v_ObjectPos = Vertex_Position;
     v_Uv = Vertex_Uv;
+    gl_Position = ViewProj * Model * vec4(Vertex_Position, 1.0);
 }
 "#;
 
@@ -63,7 +68,7 @@ const FRAGMENT_SHADER: &str = r#"
 #version 450
 
 
-layout(location = 0) in vec3 v_Position;
+layout(location = 0) in vec3 v_ObjectPos;
 layout(location = 1) in vec2 v_Uv;
 
 layout(location = 0) out vec4 o_Target;
@@ -82,11 +87,57 @@ layout(set = 1, binding = 4) buffer MyMaterial_palette {
     VoxelMaterial[] Palette;
 };
 
+layout(set = 1, binding = 5) uniform MyMaterial_cameraObjectPos {
+    vec3 cameraObjectPos;
+};
+
+layout(set = 1, binding = 6) uniform MyMaterial_objectSize {
+    vec3 objectSize;
+};
+
 void main() {
-    uint x = textureLod(
+    vec3 rayDir = normalize(v_ObjectPos - cameraObjectPos);
+    vec3 floatPos = v_ObjectPos + rayDir * .00001;
+    vec3 pos = floor(floatPos);
+    vec3 step = sign(rayDir);
+    // if (step.x == 1 then 1/rayDir.x - floatPos.x/rayDir.x else -floatPos.x / rayDir.x
+    vec3 tmax = (1 + step) / (2 * rayDir) - (floatPos - pos) / rayDir;
+    vec3 tdelta = 1 / abs(rayDir);
+
+    uint vox = textureLod(
         usampler3D(MyMaterial_texture, MyMaterial_texture_sampler),
-        vec3(v_Uv, 0), 0).r;
-    o_Target = vec4(Palette[x].albedo, 1);
+        pos / objectSize, 0).r;
+    while (vox == 0) {
+        if (tmax.x < tmax.y) {
+            if (tmax.x < tmax.z) {
+                pos.x += step.x;
+                tmax.x += tdelta.x;
+            } else {
+                pos.z += step.z;
+                tmax.z += tdelta.z;
+            }
+        } else {
+            if (tmax.y < tmax.z) {
+                pos.y += step.y;
+                tmax.y += tdelta.y;
+            } else {
+                pos.z += step.z;
+                tmax.z += tdelta.z;
+            }
+        }
+        if (any(lessThan(pos, vec3(0,0,0))) || any(greaterThan(pos, objectSize-1))) {
+            break;
+        }
+        vox = textureLod(
+            usampler3D(MyMaterial_texture, MyMaterial_texture_sampler),
+            pos / objectSize, 0).r;
+    }
+
+    if (vox == 0) {
+        discard;
+    } else {
+        o_Target = vec4(Palette[vox - 1].albedo, 1);
+    }
 }
 "#;
 
@@ -119,7 +170,11 @@ fn setup(
 
     let mut tex_3d_data = Vec::new();
     for i in 0..64 {
-        tex_3d_data.push(i);
+        if i % 3 != 0 {
+            tex_3d_data.push(0);
+        } else {
+            tex_3d_data.push(i * 3 + 5);
+        }
     }
     let tex_3d = Texture {
         data: tex_3d_data,
@@ -137,20 +192,37 @@ fn setup(
     };
     let texture_handle = textures.add(tex_3d);
 
-    let palette = vec![VoxelMaterial { albedo: Vec3::new(1.0, 0.0, 1.0)}; 255];
+    let mut palette = Vec::new();
+    for i in 0..255 {
+        palette.push(VoxelMaterial {
+            albedo: Vec3::new(i as f32 / 255.0, 0.0, 1.0),
+            roughness: 1.0,
+        })
+    }
 
     // Create a new material
     let material = materials.add(MyMaterial {
         color: Color::rgb(0.0, 0.8, 0.0),
         texture: texture_handle,
         palette: palette,
+        cameraObjectPos: Vec3::new(5.0, 8.0, -10.0),
+        objectSize: Vec3::new(4.0, 4.0, 4.0),
     });
+
+    let shape = shape::Box {
+        min_x: 0.0,
+        max_x: 4.0,
+        min_y: 0.0,
+        max_y: 4.0,
+        min_z: 0.0,
+        max_z: 4.0,
+    };
 
     // Setup our world
     commands
         // cube
         .spawn(MeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 2.0 })),
+            mesh: meshes.add(Mesh::from(shape)),
             render_pipelines: RenderPipelines::from_pipelines(vec![RenderPipeline::new(
                 pipeline_handle,
             )]),
@@ -160,50 +232,8 @@ fn setup(
         .with(material)
         // camera
         .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(3.0, 5.0, -8.0))
-                .looking_at(Vec3::default(), Vec3::unit_y()),
+            transform: Transform::from_translation(Vec3::new(5.0, 8.0, -10.0))
+                .looking_at(Vec3::new(2.0, 2.0, 2.0), Vec3::unit_y()),
             ..Default::default()
         });
 }
-
-// use bevy::prelude::*;
-//
-// fn main() {
-//     App::build()
-//         .add_plugins(DefaultPlugins)
-//         .add_startup_system(setup)
-//         .add_system(animate_sprite_system)
-//         .run();
-// }
-//
-// fn animate_sprite_system(
-//     time: Res<Time>,
-//     texture_atlases: Res<Assets<TextureAtlas>>,
-//     mut query: Query<(&mut Timer, &mut TextureAtlasSprite, &Handle<TextureAtlas>)>,
-// ) {
-//     for (mut timer, mut sprite, texture_atlas_handle) in query.iter_mut() {
-//         timer.tick(time.delta_seconds());
-//         if timer.finished() {
-//             let texture_atlas = texture_atlases.get(texture_atlas_handle).unwrap();
-//             sprite.index = ((sprite.index as usize + 1) % texture_atlas.textures.len()) as u32;
-//         }
-//     }
-// }
-//
-// fn setup(
-//     commands: &mut Commands,
-//     asset_server: Res<AssetServer>,
-//     mut texture_atlases: ResMut<Assets<TextureAtlas>>,
-// ) {
-//     let texture_handle = asset_server.load("textures/rpg/chars/gabe/gabe-idle-run.png");
-//     let texture_atlas = TextureAtlas::from_grid(texture_handle, Vec2::new(24.0, 24.0), 7, 1);
-//     let texture_atlas_handle = texture_atlases.add(texture_atlas);
-//     commands
-//         .spawn(Camera2dBundle::default())
-//         .spawn(SpriteSheetBundle {
-//             texture_atlas: texture_atlas_handle,
-//             transform: Transform::from_scale(Vec3::splat(6.0)),
-//             ..Default::default()
-//         })
-//         .with(Timer::from_seconds(0.1, true));
-// }
