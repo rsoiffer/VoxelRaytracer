@@ -5,21 +5,24 @@ layout(location = 1) in vec2 v_Uv;
 
 layout(location = 0) out vec4 o_Target;
 
-layout(set = 1, binding = 2) uniform utexture3D MyMaterial_texture;
-layout(set = 1, binding = 3) uniform sampler MyMaterial_texture_sampler;
+layout(set = 1, binding = 1) uniform utexture3D MyMaterial_texture;
+layout(set = 1, binding = 2) uniform sampler MyMaterial_texture_sampler;
+
+layout(set = 1, binding = 3) uniform texture2D MyMaterial_blue_noise;
+layout(set = 1, binding = 4) uniform sampler MyMaterial_blue_noise_sampler;
 
 struct VoxelMaterial {
     vec3 albedo;
 };
-layout(set = 1, binding = 4) buffer MyMaterial_palette {
+layout(set = 1, binding = 5) buffer MyMaterial_palette {
     VoxelMaterial[] Palette;
 };
 
-layout(set = 1, binding = 5) uniform MyMaterial_camera_object_pos {
+layout(set = 1, binding = 6) uniform MyMaterial_camera_object_pos {
     vec3 camera_object_pos;
 };
 
-layout(set = 1, binding = 6) uniform MyMaterial_object_size {
+layout(set = 1, binding = 7) uniform MyMaterial_object_size {
     vec3 object_size;
 };
 
@@ -90,6 +93,12 @@ float rand(vec2 co) {
     return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453) - .5;
 }
 
+vec4 blueNoise(vec2 screenPos) {
+    return texture(
+        sampler2D(MyMaterial_blue_noise, MyMaterial_blue_noise_sampler),
+        mod(screenPos / 1024, 1));
+}
+
 void main() {
     vec3 dir = v_ObjectPos - camera_object_pos;
     RaycastHit r = raytrace(v_ObjectPos, dir);
@@ -98,14 +107,15 @@ void main() {
     }
     vec3 albedo = pow(Palette[r.vox].albedo, vec3(2.2));
 
-    vec3 light = vec3(0, 0, 0);
+    vec3 light = vec3(.02);
 
     vec2 screenPos = gl_FragCoord.xy;
     for (int i = 0; i < 16; i++) {
-        vec3 newDir = vec3(
-            rand(screenPos + vec2(.03 * i, 0)),
-            rand(screenPos + vec2(.03 * i, .1)),
-            rand(screenPos + vec2(.03 * i, .2)));
+        vec3 newDir = blueNoise(screenPos + vec2(57 * i, 139 * i)).rgb - .5;
+//        vec3 newDir = vec3(
+//            rand(screenPos + vec2(.03 * i, 0)),
+//            rand(screenPos + vec2(.03 * i, .1)),
+//            rand(screenPos + vec2(.03 * i, .2)));
         if (dot(newDir, r.normal) < 0) {
             newDir = -1 * newDir;
         }

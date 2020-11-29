@@ -45,6 +45,7 @@ unsafe impl Byteable for VoxelMaterial {}
 #[uuid = "1e08866c-0b8a-437e-8bce-37733b25127e"]
 struct MyMaterial {
     pub texture: Handle<Texture>,
+    pub blue_noise: Handle<Texture>,
     #[render_resources(buffer)]
     pub palette: Vec<VoxelMaterial>,
     pub camera_object_pos: Vec3,
@@ -56,6 +57,7 @@ const FRAGMENT_SHADER: &str = include_str!("voxel.frag");
 
 fn setup(
     commands: &mut Commands,
+    asset_server: Res<AssetServer>,
     mut pipelines: ResMut<Assets<PipelineDescriptor>>,
     mut shaders: ResMut<Assets<Shader>>,
     mut meshes: ResMut<Assets<Mesh>>,
@@ -79,6 +81,8 @@ fn setup(
     render_graph
         .add_node_edge("my_material", base::node::MAIN_PASS)
         .unwrap();
+
+    let blue_noise_handle = asset_server.load("LDR_RGBA_0.png");
 
     for model in vox::load("assets/monu6.vox").unwrap() {
         let (width, height, depth) = model.voxels.dim();
@@ -107,6 +111,7 @@ fn setup(
         // Create a new material
         let material = materials.add(MyMaterial {
             texture: texture_handle,
+            blue_noise: blue_noise_handle.clone(),
             palette: palette,
             camera_object_pos: Vec3::new(50.0, 120.0, -200.0),
             object_size: Vec3::new(width as f32, height as f32, depth as f32),
