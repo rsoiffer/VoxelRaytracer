@@ -1,16 +1,18 @@
 use bevy::{
+    core::Byteable,
+    input::mouse::MouseMotion,
     prelude::*,
     reflect::TypeUuid,
     render::{
+        camera::Camera,
         mesh::shape,
         pipeline::{PipelineDescriptor, RenderPipeline},
-        render_graph::{AssetRenderResourcesNode, base, RenderGraph},
+        render_graph::{base, AssetRenderResourcesNode, RenderGraph},
         renderer::RenderResources,
         shader::{ShaderStage, ShaderStages},
+        texture::{Extent3d, FilterMode, SamplerDescriptor, TextureDimension, TextureFormat},
     },
 };
-use bevy::core::Byteable;
-use bevy::render::texture::{Extent3d, FilterMode, SamplerDescriptor, TextureDimension, TextureFormat};
 
 mod vox;
 
@@ -20,6 +22,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_asset::<MyMaterial>()
         .add_startup_system(setup)
+        .add_system(mouse_camera)
         .run();
 }
 
@@ -133,12 +136,47 @@ fn setup(
             .with(material);
     }
 
-    // Setup our world
-    commands
-        // camera
-        .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(50.0, 120.0, -200.0))
-                .looking_at(Vec3::new(50.0, 100.0, 50.0), Vec3::unit_y()),
-            ..Default::default()
-        });
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_translation(Vec3::new(50.0, 120.0, -200.0)),
+        ..Default::default()
+    });
+}
+
+struct MouseCameraState {
+    reader: EventReader<MouseMotion>,
+    pitch: f32,
+    yaw: f32,
+}
+
+impl Default for MouseCameraState {
+    fn default() -> Self {
+        MouseCameraState {
+            reader: Default::default(),
+            pitch: 0.0,
+            yaw: 180.0,
+        }
+    }
+}
+
+const MOUSE_SENSITIVITY: f32 = 3.0;
+
+fn mouse_camera(
+    mut state: Local<MouseCameraState>,
+    time: Res<Time>,
+    events: Res<Events<MouseMotion>>,
+    mut query: Query<(&Camera, &mut Transform)>,
+) {
+    let delta = state
+        .reader
+        .iter(&events)
+        .fold(Vec2::zero(), |acc, event| acc + event.delta);
+    state.yaw -= delta.x * time.delta_seconds() * MOUSE_SENSITIVITY;
+    state.pitch = (state.pitch + delta.y * time.delta_seconds() * MOUSE_SENSITIVITY)
+        .min(90.0)
+        .max(-90.0);
+
+    for (_, mut transform) in query.iter_mut() {
+        transform.rotation = Quat::from_axis_angle(Vec3::unit_y(), state.yaw.to_radians())
+            * Quat::from_axis_angle(-Vec3::unit_x(), state.pitch.to_radians());
+    }
 }
