@@ -47,44 +47,44 @@ RaycastHit raytrace(vec3 start, vec3 dir) {
     vec3 normal = vec3(0, 0, 0);
     float t = 0;
 
-    uint vox = textureLod(
-        usampler3D(MyMaterial_texture, MyMaterial_texture_sampler),
-        pos, 0).r;
-    for (uint i = 0; i < 100; i++) {
-        if (vox != 0) {
-            break;
-        }
-        if (tmax.x < tmax.y) {
-            if (tmax.x < tmax.z) {
-                t = tmax.x;
-                pos.x += step.x;
-                tmax.x += tdelta.x;
-                normal = vec3(1, 0, 0);
-            } else {
-                t = tmax.z;
-                pos.z += step.z;
-                tmax.z += tdelta.z;
-                normal = vec3(0, 0, 1);
+    uint vox = 0;
+    if (!(any(lessThan(pos, vec3(0, 0, 0))) || any(greaterThanEqual(pos, vec3(1, 1, 1))))) {
+        for (uint i = 0; i < 100; i++) {
+            vox = textureLod(
+                usampler3D(MyMaterial_texture, MyMaterial_texture_sampler),
+                pos, 0).r;
+            if (vox != 0) {
+                break;
             }
-        } else {
-            if (tmax.y < tmax.z) {
-                t = tmax.y;
-                pos.y += step.y;
-                tmax.y += tdelta.y;
-                normal = vec3(0, 1, 0);
+            if (tmax.x < tmax.y) {
+                if (tmax.x < tmax.z) {
+                    t = tmax.x;
+                    pos.x += step.x;
+                    tmax.x += tdelta.x;
+                    normal = vec3(1, 0, 0);
+                } else {
+                    t = tmax.z;
+                    pos.z += step.z;
+                    tmax.z += tdelta.z;
+                    normal = vec3(0, 0, 1);
+                }
             } else {
-                t = tmax.z;
-                pos.z += step.z;
-                tmax.z += tdelta.z;
-                normal = vec3(0, 0, 1);
+                if (tmax.y < tmax.z) {
+                    t = tmax.y;
+                    pos.y += step.y;
+                    tmax.y += tdelta.y;
+                    normal = vec3(0, 1, 0);
+                } else {
+                    t = tmax.z;
+                    pos.z += step.z;
+                    tmax.z += tdelta.z;
+                    normal = vec3(0, 0, 1);
+                }
+            }
+            if (any(lessThan(pos, vec3(0, 0, 0))) || any(greaterThanEqual(pos, vec3(1, 1, 1)))) {
+                break;
             }
         }
-        if (any(lessThan(pos, vec3(0, 0, 0))) || any(greaterThanEqual(pos, vec3(1, 1, 1)))) {
-            break;
-        }
-        vox = textureLod(
-            usampler3D(MyMaterial_texture, MyMaterial_texture_sampler),
-            pos, 0).r;
     }
     return RaycastHit(vox, object_size * pos, floatPos + t * rayDir, -normal * sign(step));
 }
