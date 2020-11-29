@@ -12,6 +12,8 @@ use bevy::{
 use bevy::core::Byteable;
 use bevy::render::texture::{Extent3d, FilterMode, SamplerDescriptor, TextureDimension, TextureFormat};
 
+mod vox;
+
 /// This example illustrates how to create a custom material asset and a shader that uses that material
 fn main() {
     App::build()
