@@ -205,20 +205,8 @@ fn keyboard_camera(
     input: Res<Input<KeyCode>>,
     mut query: Query<(&Camera, &mut Transform)>,
 ) {
-    let forward_velocity = if input.pressed(KeyCode::W) {
-        -1.0
-    } else if input.pressed(KeyCode::S) {
-        1.0
-    } else {
-        0.0
-    };
-    let sideways_velocity = if input.pressed(KeyCode::A) {
-        1.0
-    } else if input.pressed(KeyCode::D) {
-        -1.0
-    } else {
-        0.0
-    };
+    let forward_velocity = key_axis_value(&input, KeyCode::S, KeyCode::W);
+    let sideways_velocity = key_axis_value(&input, KeyCode::A, KeyCode::D);
 
     for (_, mut transform) in query.iter_mut() {
         let sideways = transform.forward().cross(Vec3::unit_y()).normalize();
@@ -230,5 +218,15 @@ fn keyboard_camera(
                 material.camera_object_pos = transform.translation;
             }
         }
+    }
+}
+
+fn key_axis_value(input: &Res<Input<KeyCode>>, plus: KeyCode, minus: KeyCode) -> f32 {
+    if input.pressed(plus) {
+        1.0
+    } else if input.pressed(minus) {
+        -1.0
+    } else {
+        0.0
     }
 }
