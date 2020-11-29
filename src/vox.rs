@@ -1,3 +1,4 @@
+use bevy::prelude::Color;
 use ndarray::{Array3, Ix};
 use std::cmp;
 
@@ -7,7 +8,7 @@ pub type Palette = [Material; MaterialId::MAX as usize];
 
 #[derive(Clone, Copy, Debug)]
 pub struct Material {
-    pub color: u32,
+    pub color: Color,
 }
 
 pub struct Model {
@@ -48,11 +49,21 @@ pub fn load(filename: &str) -> Result<Vec<Model>, &'static str> {
 }
 
 fn palette_from_colors(colors: impl IntoIterator<Item = u32>) -> Palette {
-    let mut materials = [Material { color: 0 }; u8::MAX as usize];
+    let mut materials = [Material { color: Color::NONE }; u8::MAX as usize];
     for (i, color) in colors.into_iter().take(materials.len() - 1).enumerate() {
-        materials[i + 1] = Material { color: color };
+        materials[i + 1] = Material {
+            color: color_from_u32(color),
+        };
     }
     materials
+}
+
+fn color_from_u32(color: u32) -> Color {
+    let component = |i: u8| {
+        let offset = i * 8;
+        ((color >> offset) & 255) as f32 / 255.0
+    };
+    Color::rgba(component(0), component(1), component(2), component(3))
 }
 
 fn min_max<T>(xs: impl IntoIterator<Item = T>) -> Option<(T, T)>
