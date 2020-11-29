@@ -108,7 +108,7 @@ fn setup(
         let material = materials.add(MyMaterial {
             texture: texture_handle,
             palette: palette,
-            camera_object_pos: Vec3::new(50.0, 80.0, -200.0),
+            camera_object_pos: Vec3::new(50.0, 120.0, -200.0),
             object_size: Vec3::new(width as f32, height as f32, depth as f32),
         });
 
@@ -137,8 +137,8 @@ fn setup(
     commands
         // camera
         .spawn(Camera3dBundle {
-            transform: Transform::from_translation(Vec3::new(50.0, 80.0, -200.0))
-                .looking_at(Vec3::new(2.0, 100.0, 2.0), Vec3::unit_y()),
+            transform: Transform::from_translation(Vec3::new(50.0, 120.0, -200.0))
+                .looking_at(Vec3::new(50.0, 100.0, 50.0), Vec3::unit_y()),
             ..Default::default()
         });
 }

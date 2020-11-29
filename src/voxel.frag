@@ -32,7 +32,7 @@ struct RaycastHit {
 
 RaycastHit raytrace(vec3 start, vec3 dir) {
     vec3 rayDir = normalize(dir);
-    vec3 floatPos = start + rayDir * .00001;
+    vec3 floatPos = start + rayDir * .01;
     vec3 pos = floor(floatPos);
     vec3 step = sign(rayDir);
     // if (step.x == 1 then 1/rayDir.x - floatPos.x/rayDir.x else -floatPos.x / rayDir.x
@@ -47,7 +47,10 @@ RaycastHit raytrace(vec3 start, vec3 dir) {
     uint vox = textureLod(
         usampler3D(MyMaterial_texture, MyMaterial_texture_sampler),
         pos, 0).r;
-    while (vox == 0) {
+    for (uint i = 0; i < 100; i++) {
+        if (vox != 0) {
+            break;
+        }
         if (tmax.x < tmax.y) {
             if (tmax.x < tmax.z) {
                 t = tmax.x;
@@ -83,10 +86,43 @@ RaycastHit raytrace(vec3 start, vec3 dir) {
     return RaycastHit(vox, object_size * pos, floatPos + t * rayDir, -normal * sign(step));
 }
 
+float rand(vec2 co) {
+    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453) - .5;
+}
+
 void main() {
-    RaycastHit r = raytrace(v_ObjectPos, v_ObjectPos - camera_object_pos);
+    vec3 dir = v_ObjectPos - camera_object_pos;
+    RaycastHit r = raytrace(v_ObjectPos, dir);
     if (r.vox == 0) {
         discard;
     }
-    o_Target = vec4(Palette[r.vox].albedo, 1);
+    vec3 albedo = pow(Palette[r.vox].albedo, vec3(2.2));
+
+    vec3 light = vec3(0, 0, 0);
+
+    vec2 screenPos = gl_FragCoord.xy;
+    for (int i = 0; i < 16; i++) {
+        vec3 newDir = vec3(
+            rand(screenPos + vec2(.03 * i, 0)),
+            rand(screenPos + vec2(.03 * i, .1)),
+            rand(screenPos + vec2(.03 * i, .2)));
+        if (dot(newDir, r.normal) < 0) {
+            newDir = -1 * newDir;
+        }
+        RaycastHit r2 = raytrace(r.pos, newDir);
+        if (r2.vox == 0) {
+            light += vec3(1, 1, 1) * (.7 + .4 * newDir.y) / 16;
+        }
+    }
+
+    vec3 sunDir = vec3(-.2, 1, .3);
+    if (dot(sunDir, r.normal) > 0) {
+        RaycastHit r3 = raytrace(r.pos, sunDir);
+        if (r3.vox == 0) {
+            light += vec3(1, .9, .8);
+        }
+    }
+
+    vec3 color = clamp(albedo * light * .5, 0, 1);
+    o_Target = vec4(pow(color, vec3(1/2.2)), 1);
 }
