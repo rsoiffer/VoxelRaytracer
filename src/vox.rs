@@ -1,4 +1,5 @@
 use ndarray::{Array3, Ix};
+use std::cmp;
 
 pub type MaterialId = u8;
 
@@ -16,22 +17,18 @@ pub struct Model {
 
 pub fn load(filename: &str) -> Result<Vec<Model>, &'static str> {
     let data = dot_vox::load(filename)?;
-
-    let mut palette = [Material { color: 0 }; u8::MAX as usize];
-    for (index, color) in data.palette.iter().take(palette.len() - 1).enumerate() {
-        palette[index + 1] = Material { color: *color };
-    }
+    let palette = palette_from_colors(data.palette);
 
     Ok(data
         .models
         .iter()
         .map(|model| {
-            let min_x = model.voxels.iter().map(|voxel| voxel.x).min().unwrap_or(0);
-            let max_x = model.voxels.iter().map(|voxel| voxel.x).max().unwrap_or(0);
-            let min_y = model.voxels.iter().map(|voxel| voxel.y).min().unwrap_or(0);
-            let max_y = model.voxels.iter().map(|voxel| voxel.y).max().unwrap_or(0);
-            let min_z = model.voxels.iter().map(|voxel| voxel.z).min().unwrap_or(0);
-            let max_z = model.voxels.iter().map(|voxel| voxel.z).max().unwrap_or(0);
+            let (min_x, max_x) =
+                min_max(model.voxels.iter().map(|voxel| voxel.x)).unwrap_or((0, 0));
+            let (min_y, max_y) =
+                min_max(model.voxels.iter().map(|voxel| voxel.y)).unwrap_or((0, 0));
+            let (min_z, max_z) =
+                min_max(model.voxels.iter().map(|voxel| voxel.z)).unwrap_or((0, 0));
             let mut voxels = Array3::default((
                 Ix::from(max_x - min_x + 1),
                 Ix::from(max_y - min_y + 1),
@@ -48,6 +45,25 @@ pub fn load(filename: &str) -> Result<Vec<Model>, &'static str> {
             Model { palette, voxels }
         })
         .collect())
+}
+
+fn palette_from_colors(colors: impl IntoIterator<Item = u32>) -> Palette {
+    let mut materials = [Material { color: 0 }; u8::MAX as usize];
+    for (i, color) in colors.into_iter().take(materials.len() - 1).enumerate() {
+        materials[i + 1] = Material { color: color };
+    }
+    materials
+}
+
+fn min_max<T>(xs: impl IntoIterator<Item = T>) -> Option<(T, T)>
+where
+    T: Copy,
+    T: Ord,
+{
+    xs.into_iter().fold(None, |acc, x| match acc {
+        None => Some((x, x)),
+        Some((min, max)) => Some((cmp::min(min, x), cmp::max(max, x))),
+    })
 }
 
 #[cfg(test)]
