@@ -1,6 +1,6 @@
 use bevy::{
     core::Byteable,
-    input::mouse::MouseMotion,
+    input::{mouse::MouseMotion, system::exit_on_esc_system},
     prelude::*,
     reflect::TypeUuid,
     render::{
@@ -22,6 +22,7 @@ fn main() {
         .add_plugins(DefaultPlugins)
         .add_asset::<MyMaterial>()
         .add_startup_system(setup)
+        .add_system(exit_on_esc_system)
         .add_system(mouse_camera)
         .run();
 }
@@ -67,7 +68,13 @@ fn setup(
     mut materials: ResMut<Assets<MyMaterial>>,
     mut textures: ResMut<Assets<Texture>>,
     mut render_graph: ResMut<RenderGraph>,
+    mut windows: ResMut<Windows>,
 ) {
+    for window in windows.iter_mut() {
+        window.set_cursor_lock_mode(true);
+        window.set_cursor_visibility(false);
+    }
+
     // Create a new shader pipeline
     let pipeline_handle = pipelines.add(PipelineDescriptor::default_config(ShaderStages {
         vertex: shaders.add(Shader::from_glsl(ShaderStage::Vertex, VERTEX_SHADER)),
@@ -163,7 +170,7 @@ impl Default for MouseCameraState {
     }
 }
 
-const MOUSE_SENSITIVITY: f32 = 3.0;
+const MOUSE_SENSITIVITY: f32 = 5.0;
 
 fn mouse_camera(
     mut state: Local<MouseCameraState>,
