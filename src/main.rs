@@ -129,12 +129,12 @@ fn setup(
         });
 
         let shape = shape::Box {
-            min_x: 0.0,
-            max_x: width as f32,
-            min_y: 0.0,
-            max_y: height as f32,
-            min_z: 0.0,
-            max_z: depth as f32,
+            min_x: width as f32,
+            max_x: 0.0,
+            min_y: height as f32,
+            max_y: 0.0,
+            min_z: depth as f32,
+            max_z: 0.0,
         };
 
         commands
