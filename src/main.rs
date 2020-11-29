@@ -108,7 +108,7 @@ fn setup(
     // Add an AssetRenderResourcesNode to our Render Graph. This will bind MyMaterial resources to our shader
     render_graph.add_system_node(
         "my_material",
-        AssetRenderResourcesNode::<MyMaterial>::new(true),
+        AssetRenderResourcesNode::<MyMaterial>::new(false),
     );
 
     // Add a Render Graph edge connecting our new "my_material" node to the main pass node. This ensures "my_material" runs before the main pass
@@ -119,7 +119,7 @@ fn setup(
 
     let mut tex_3d_data = Vec::new();
     for i in 0..64 {
-        tex_3d_data.push(i % 2);
+        tex_3d_data.push(i);
     }
     let tex_3d = Texture {
         data: tex_3d_data,
@@ -137,7 +137,7 @@ fn setup(
     };
     let texture_handle = textures.add(tex_3d);
 
-    let palette = vec![VoxelMaterial { albedo: Vec3::new(1.0, 1.0, 1.0)}; 255];
+    let palette = vec![VoxelMaterial { albedo: Vec3::new(1.0, 0.0, 1.0)}; 255];
 
     // Create a new material
     let material = materials.add(MyMaterial {
